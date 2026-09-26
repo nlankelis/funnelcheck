@@ -1,0 +1,138 @@
+{
+  "source": "User-provided Roblox API response from 2026-09-26; all 15 rate values verified against the user's export. Operation metadata omitted.",
+  "query": {
+    "universe_id": "10765553159",
+    "funnel_name": "MatchCompletion_v2",
+    "start": "2026-09-19",
+    "end_exclusive": "2026-09-22",
+    "step_ids": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ]
+  },
+  "result": {
+    "done": true,
+    "response": {
+      "values": [
+        {
+          "breakdowns": [
+            {
+              "dimension": "FunnelStep",
+              "value": "1",
+              "displayValue": "Match started"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-09-19T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-09-20T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-09-21T00:00:00+00:00",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "FunnelStep",
+              "value": "2",
+              "displayValue": "First round started"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-09-19T00:00:00+00:00",
+              "value": 0.9710144996643066
+            },
+            {
+              "time": "2026-09-20T00:00:00+00:00",
+              "value": 1
+            },
+            {
+              "time": "2026-09-21T00:00:00+00:00",
+              "value": 0.989130437374115
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "FunnelStep",
+              "value": "3",
+              "displayValue": "First reveal issued"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-09-19T00:00:00+00:00",
+              "value": 0.95652174949646
+            },
+            {
+              "time": "2026-09-20T00:00:00+00:00",
+              "value": 0.9909909963607788
+            },
+            {
+              "time": "2026-09-21T00:00:00+00:00",
+              "value": 0.967391312122345
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "FunnelStep",
+              "value": "4",
+              "displayValue": "Normal rounds decided"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-09-19T00:00:00+00:00",
+              "value": 0.47826087474823
+            },
+            {
+              "time": "2026-09-20T00:00:00+00:00",
+              "value": 0.5765765905380249
+            },
+            {
+              "time": "2026-09-21T00:00:00+00:00",
+              "value": 0.760869562625885
+            }
+          ]
+        },
+        {
+          "breakdowns": [
+            {
+              "dimension": "FunnelStep",
+              "value": "5",
+              "displayValue": "Match completed"
+            }
+          ],
+          "dataPoints": [
+            {
+              "time": "2026-09-19T00:00:00+00:00",
+              "value": 0.2753623127937317
+            },
+            {
+              "time": "2026-09-20T00:00:00+00:00",
+              "value": 0.4864864945411682
+            },
+            {
+              "time": "2026-09-21T00:00:00+00:00",
+              "value": 0.6521739363670349
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
