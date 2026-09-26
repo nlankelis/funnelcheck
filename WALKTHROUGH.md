@@ -86,10 +86,85 @@ Answer these in your own words before reading the next implementation:
    starters, why isn't the arithmetic mean of their completion rates the pooled
    conversion rate? What extra data and matching definitions would you need?
 
+## Part 2: step-by-step drop-off
+
+After parsing and displaying validation notes, the CLI passes the same rows and
+query to `calculate_dropoffs` in `funnelcheck/analysis.py`. Both demo and live mode
+use this path. The function assumes rows came from `parse_rates`; it is not a
+second raw-input parser. It performs the additional checks needed to interpret
+the rows and returns immutable `StepDropoff` records. It makes no HTTP requests
+and prints nothing, so a later web endpoint can reuse it.
+
+Read the function in this order:
+
+1. `by_day` is a dictionary of dates, each holding another dictionary keyed by
+   step ID. It makes looking up a particular date/step straightforward.
+2. Sort expected step IDs numerically. Text sorting would place `"10"` before
+   `"2"`. Iterate every requested date, including days absent from the response.
+3. Check the starting rate and cumulative ordering. An unusable starting rate,
+   flagged baseline status or any increase withholds the day's calculations.
+   The starting-rate check uses the existing validator's 0.000001 tolerance.
+   Increases are handled strictly here: even a tiny increase gives an explanation
+   instead of a negative drop or a value silently clipped to zero.
+4. `zip(steps, steps[1:])` makes pairs such as `(1, 2)`, `(2, 3)`, `(3, 4)`.
+   Pair expected steps, not just the returned rows: missing step 2 must never
+   turn into an apparent step 1-to-3 transition. Unselected numeric gaps are also
+   withheld until we have explicit support for a funnel's nonconsecutive IDs.
+5. Check both endpoints exist and their statuses are absent or `Valid` before
+   subtracting. A flagged endpoint affects its pairs; a flagged baseline affects
+   the whole day. Missing or suspicious values remain visible in the raw table.
+6. Calculate the two measures, keeping full precision. Only CLI formatting
+   rounds them. `None` means unavailable; zero means a calculated zero.
+
+### Work through the maths
+
+Synthetic example: 80% reach step 2 and 60% reach step 3.
+
+```python
+previous = 0.8
+current = 0.6
+percentage_points = (previous - current) * 100  # about 20 pp of starters
+relative_drop = (previous - current) / previous  # about 0.25, displayed as 25%
+```
+
+The second measure asks what fraction of step-2 progress is lost before step 3.
+It uses the previous step as its denominator. The first uses the starting cohort.
+For your September 19 step 3-to-4 data, the output is **47.83 pp** and **50.00%**.
+Subtract the full stored rates before rounding: subtracting the displayed 95.65%
+and 47.83% instead would give 47.82 pp, losing precision too early.
+
+If `previous` is positive and `current` is zero, relative drop is 100%. If both
+are zero in an otherwise usable cohort, the pp difference is zero but relative
+drop is undefined (`0 / 0`): return `None` and a reason. If the starting step is
+zero too, withhold both measures for the whole day.
+
+### Checks to run
+
+From the project root:
+
+```powershell
+.\.venv\Scripts\python.exe -m funnelcheck demo
+.\.venv\Scripts\python.exe -m pytest -q tests/test_analysis.py
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+- Demo: 12 transitions; September 19 step 3-to-4 is 47.83 pp and 50.00%.
+- Edge cases: missing steps, empty days, zero denominators, increasing rates,
+  flagged statuses and numeric ordering have explicit tests.
+- The real-data test also checks that each day's pp drops add up to its starting
+  rate minus final rate, in pp. Relative percentages must not be added this way.
+- Tests use the saved example and labelled synthetic cases; they never need a key.
+
+### Interview questions for this part
+
+1. Why does going from 80% to 60% mean a 20 pp drop but a 25% relative drop?
+2. Why is a zero-to-zero transition different from an 80%-to-zero transition?
+3. If step 2 is missing, why do we pair the expected IDs instead of zipping the
+   available rows? Which test would fail if we changed that?
+
 ## Next part: comparisons
 
-There is deliberately no comparison calculation in this milestone. We first
-need trustworthy records. Next we will retain filter/version metadata, reject
-incompatible comparisons, and calculate a step's rate change in percentage
-points. We will walk through that code with a concrete before/after example.
-An observed difference will not be described as proof of an update's effect.
+Date comparisons are still a separate milestone. We will retain filter/version
+metadata, reject incompatible comparisons, and calculate a step's rate change
+in percentage points. An observed difference will not be described as proof
+of an update's effect.

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from .api import RobloxAPIError, fetch_rates
+from .analysis import calculate_dropoffs
 from .funnel import DataError, FunnelQuery, parse_rates, validation_notes
 
 
@@ -48,6 +49,20 @@ def main(argv=None) -> int:
         print(f"\n{len(rows)} records; {len(notes)} validation notes.")
         for note in notes:
             print(f"- {note}")
+        dropoffs = calculate_dropoffs(rows, query)
+        print("\nStep drop-off (same daily cohort):")
+        print("Starter drop = percentage points of starters; relative drop = % of the preceding step.")
+        print(f"{'Date':<12} {'Steps':<9} {'Starter drop':>14} {'Relative drop':>15}")
+        for drop in dropoffs:
+            points = "N/A" if drop.percentage_points is None else f"{drop.percentage_points:.2f} pp"
+            relative = "N/A" if drop.relative_drop is None else f"{drop.relative_drop:.2%}"
+            pair = f"{drop.from_step} -> {drop.to_step}"
+            print(f"{drop.cohort_date!s:<12} {pair:<9} {points:>14} {relative:>15}")
+            if drop.reason:
+                print(f"  {drop.reason}")
+        if not dropoffs:
+            print("At least two requested steps are needed for a step-to-step calculation.")
+        print("N/A means unavailable, not zero. Drop-off describes recorded progress, not why it stopped.")
         print("\nRates only: no sample-size, significance, causal or pooled-conversion claims.")
         return 0
     except (DataError, RobloxAPIError, OSError, ValueError, KeyError) as exc:

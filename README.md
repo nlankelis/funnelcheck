@@ -3,9 +3,10 @@
 A Python project for checking Roblox funnel data and, in later milestones,
 comparing compatible cohorts around recorded updates.
 
-**Part 1:** read-only API client, daily-rate parser, validation and an offline
-example from Size It Up. There is no web app yet. The parser does not make
-recommendations, calculate pooled conversion or claim an update caused a change.
+**Parts 1 and 2:** read-only API client, daily-rate parser, validation, step-by-step
+drop-off and an offline example from Size It Up. There is no web app yet. The
+analysis does not make recommendations, calculate pooled conversion or claim
+an update caused a change.
 
 ## Run the first part on Windows
 
@@ -21,6 +22,30 @@ the project root; no environment activation or execution-policy change is needed
 The demo uses no key and makes no network requests. Expect **15 records and
 0 validation notes**. Match completion should be **27.54%, 48.65%, 65.22%** for
 September 19, 20 and 21. Tests use fake HTTP responses and require no Roblox access.
+
+The demo also displays **12 step-to-step results** (four per day). On September 19,
+step 3 to 4 should show **47.83 pp** of starters and **50.00%** relative drop from
+step 3. These have different denominators; neither is a count of players.
+
+## Read the drop-off table
+
+For cumulative rates `previous` and `current`, stored as fractions:
+
+- **Starter drop:** `(previous - current) * 100`, in percentage points.
+- **Relative drop:** `(previous - current) / previous`, displayed as a percentage.
+
+Calculations stay within one daily cohort and use full precision until display.
+Missing endpoints, unselected intermediate step IDs and flagged endpoint statuses
+produce `N/A` with an explanation. A missing, flagged or non-100% starting rate
+withholds the day's calculations (100% is checked within 0.000001 in rate units).
+Any cumulative increase also withholds that day's calculations, even if tiny;
+the raw rows are preserved rather than silently corrected. A zero-to-zero pair
+in an otherwise usable cohort has a 0 pp drop but an undefined relative drop.
+
+This conservative first version requires consecutive numeric step IDs for each
+pair. If a funnel deliberately uses gaps, its step definitions will need explicit
+support later. Drop-off describes missing recorded progress, not confirmed exits,
+causes, retention or a prediction of what an update would improve.
 
 In VS Code, use **Python: Select Interpreter** and choose
 `.venv\Scripts\python.exe` if the Python extension is installed.
@@ -67,6 +92,7 @@ are machine-specific and must not be committed or copied to another computer.
 ## What to read
 
 - `funnelcheck/funnel.py`: query context, immutable records, parsing and validation.
+- `funnelcheck/analysis.py`: pure drop-off calculations and reasons for unavailable results.
 - `funnelcheck/api.py`: HTTP request, polling, timeout and error handling.
 - `funnelcheck/__main__.py`: command-line wiring and display formatting.
 - `WALKTHROUGH.md`: explanations, checks and interview questions.
