@@ -12,3 +12,6 @@ data/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/

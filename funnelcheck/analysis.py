@@ -17,6 +17,22 @@ class StepDropoff:
     reason: str | None = None
 
 
+def cohort_issue(points: dict[str, FunnelRow]) -> str | None:
+    """Shared interpretation checks for one parsed daily cohort."""
+    baseline = points.get("1")
+    if baseline is None:
+        return "Step 1 is missing; starting cohort cannot be checked."
+    if baseline.status not in (None, "Valid"):
+        return f"Step 1 has Roblox status {baseline.status}."
+    if not math.isclose(baseline.completion_rate, 1, rel_tol=0, abs_tol=1e-6):
+        return "Step 1 is not 100%; no usable starting-cohort baseline."
+    observed = sorted(points.values(), key=lambda row: int(row.step_id))
+    if any(b.completion_rate > a.completion_rate for a, b in zip(observed, observed[1:])):
+        # Even a tiny increase is withheld, rather than rounded to zero.
+        return "Cumulative rates increase; check this cohort before interpreting rate changes."
+    return None
+
+
 def calculate_dropoffs(rows: list[FunnelRow], query: FunnelQuery) -> list[StepDropoff]:
     """Use rows from parse_rates with their matching query, without rounding.
 
@@ -32,19 +48,7 @@ def calculate_dropoffs(rows: list[FunnelRow], query: FunnelQuery) -> list[StepDr
     day = query.start
     while day < query.end_exclusive:
         points = by_day.get(day, {})
-        baseline = points.get("1")
-        cohort_reason = None
-        if baseline is None:
-            cohort_reason = "Step 1 is missing; starting cohort cannot be checked."
-        elif baseline.status not in (None, "Valid"):
-            cohort_reason = f"Step 1 has Roblox status {baseline.status}."
-        elif not math.isclose(baseline.completion_rate, 1, rel_tol=0, abs_tol=1e-6):
-            cohort_reason = "Step 1 is not 100%; no usable starting-cohort baseline."
-        else:
-            observed = sorted(points.values(), key=lambda row: int(row.step_id))
-            if any(b.completion_rate > a.completion_rate for a, b in zip(observed, observed[1:])):
-                # Even a tiny increase is withheld, rather than rounded to zero.
-                cohort_reason = "Cumulative rates increase; check this cohort before interpreting drop-off."
+        cohort_reason = cohort_issue(points)
 
         for from_step, to_step in zip(steps, steps[1:]):
             previous = points.get(from_step)

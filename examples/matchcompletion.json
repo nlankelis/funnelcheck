@@ -1,6 +1,8 @@
 {
   "source": "User-provided Roblox API response from 2026-09-26; all 15 rate values verified against the user's export. Operation metadata omitted.",
   "query": {
+    "metric": "FunnelCohortSessionCompletionRate",
+    "granularity": "OneDay",
     "universe_id": "10765553159",
     "funnel_name": "MatchCompletion_v2",
     "start": "2026-09-19",
@@ -134,5 +136,11 @@
         }
       ]
     }
+  },
+  "update": {
+    "name": "Tutorial explanation update",
+    "local_time": "2026-09-20T04:00",
+    "time_zone": "Europe/London",
+    "approximate": true
   }
 }

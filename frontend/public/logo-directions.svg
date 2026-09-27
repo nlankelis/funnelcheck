@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+  <title>FunnelCheck: three step-and-check logo directions</title>
+  <rect width="1200" height="520" fill="#fff"/>
+  <g font-family="Segoe UI, Arial, sans-serif" fill="#1d1d1f">
+    <text x="48" y="53" font-size="25" font-weight="600">FunnelCheck</text>
+    <text x="48" y="80" font-size="14" fill="#6e6e73">Step-and-check symbol studies · original SVG artwork</text>
+    <path d="M48 108h1104M415 138v290M785 138v290" stroke="#dedee2"/>
+    <g transform="translate(160 147) scale(2.5)" fill="none" stroke="#1d1d1f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9h11v10h10v10l7 7 11-15"/></g>
+    <g transform="translate(530 147) scale(2.5)" fill="none" stroke="#1d1d1f" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10h27M7 20h18M7 30h9M24 29l7 7 13-16"/></g>
+    <g transform="translate(907 145) scale(2.5)" fill="none" stroke="#1d1d1f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="46" height="44" rx="7"/><path d="M10 13h9v8h8v7l6 6 8-11"/></g>
+    <text x="80" y="301" font-size="18" font-weight="600">01  Continuous</text>
+    <text x="80" y="330" font-size="13" fill="#6e6e73">One path from steps to check.</text>
+    <text x="80" y="351" font-size="13" fill="#6e6e73">An alternative continuous-line direction.</text>
+    <text x="450" y="301" font-size="18" font-weight="600">02  Stacked</text>
+    <text x="450" y="330" font-size="13" fill="#6e6e73">Descending bars with a separate check.</text>
+    <text x="450" y="351" font-size="13" fill="#6e6e73">Selected mark used in the header.</text>
+    <text x="820" y="301" font-size="18" font-weight="600">03  Framed</text>
+    <text x="820" y="330" font-size="13" fill="#6e6e73">A compact step-and-check badge.</text>
+    <text x="820" y="351" font-size="13" fill="#6e6e73">A more contained app-icon shape.</text>
+    <g fill="none" stroke="#0066cc" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+      <g transform="translate(80 375) scale(.65)"><path d="M7 9h11v10h10v10l7 7 11-15"/></g>
+      <g transform="translate(450 375) scale(.65)"><path d="M7 10h27M7 20h18M7 30h9M24 29l7 7 13-16"/></g>
+      <g transform="translate(820 375) scale(.65)" stroke-width="2.5"><rect x="2" y="2" width="46" height="44" rx="7"/><path d="M10 13h9v8h8v7l6 6 8-11"/></g>
+    </g>
+    <path d="M48 448h1104" stroke="#dedee2"/>
+    <text x="48" y="482" font-size="12" fill="#6e6e73">The check represents checking data. It is not a claim of statistical certainty or verified improvement.</text>
+  </g>
+</svg>
