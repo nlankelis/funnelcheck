@@ -454,7 +454,7 @@ Next read `frontend/src/App.tsx`:
    A draft-change message helps prevent reading an old report under new dates.
 6. **Import:** read a JSON file into memory, check its basic object shape and send
    it to Python. The backend still validates the data, metadata and dates. A saved
-   comparison is cleared on import so it doesn't override the visible controls.
+   comparison is validated and restored from the server response, including its controls.
 7. **Presentation:** rates, pp changes and reasons come from the backend. Sorting
    step IDs, choosing visible rows and formatting numbers are frontend concerns.
    The frontend doesn't reimplement funnel conversion or investigation rules.
@@ -593,3 +593,88 @@ the comparison, then save/import: both must stay cleared.
 Interview questions: Why save raw rates instead of rounded percentages? Why does
 import validate an app-generated file again? How are undefined and null different
 in the comparison request? Why should a download use applied rather than draft state?
+
+
+## Part 10: an explicit hypothesis, a bounded diagnostic rule
+
+The tutorial was added; there was no old tutorial. The owner describes a quick,
+detailed explanation of the game. This tells us what changed, but does not identify
+which analytics event measures the intended behaviour. The app therefore asks the
+user to choose measurements instead of supplying a default event mapping.
+
+Read `diagnostics.py` → `server.py` → `api.ts` → `HypothesisPanel.tsx`:
+
+1. Frozen `Expectation` and `Hypothesis` dataclasses validate a nonblank statement,
+   supported directions, unique step IDs and the 1–10 measurement limit. HTTP
+   schemas additionally reject wrong types and unexpected fields. A hypothesis
+   step must be part of its query; a typo cannot become an apparently missing event.
+2. `evaluate_hypothesis` accepts rows already checked by `parse_rates`, their query,
+   optional applied dates and the recorded update. It calls `compare_daily_cohorts`
+   instead of implementing another set of quality checks or formulas. This keeps
+   missing values, unusable starting cohorts, increasing cumulative rates and
+   flagged Roblox statuses consistent with the comparison table.
+3. Match by explicit step ID. The expected sign comes from the user, while the
+   observed sign comes from the original `(after_rate - before_rate) * 100`.
+   Rounding is display-only. Zero is a measurement; `None` means unavailable.
+4. `build_update_context` checks that the selected dates are full days either side
+   of the reported deployment. A transition day, same-side pair, absent update or
+   absent comparison withholds a verdict. Valid descriptive rates and differences
+   may remain visible beside the reason; this distinction prevents hiding data.
+5. Compare observed and expected direction. Exact agreement supports a direction;
+   an opposite nonzero direction conflicts; zero when change was expected is
+   unchanged. Expecting unchanged and observing zero supports that expectation.
+   No numerical tolerance represents statistical equivalence or significance.
+6. The summary has explicit precedence: missing → insufficient; support plus
+   conflict → mixed; any conflict → conflicting; any remaining unchanged → unchanged;
+   otherwise supporting. Individual observations remain visible. There is no
+   score, majority vote, pooling, weighting, causal model or predicted benefit.
+7. Save `hypothesis` inputs in the validated snapshot, not computed `diagnostics`.
+   Older snapshots default to no hypothesis. Import revalidates and recalculates.
+   Date/update edits preserve the applied mapping, even when it becomes insufficient.
+   Clearing sends explicit null so a file's original mapping cannot reappear.
+8. React reads the native form only on Apply. No measurement is selected initially.
+   Pending edits are labelled and excluded from saves; directions and arithmetic
+   are evaluated in Python. Request retries reuse the failed attempt's settings.
+
+### Concrete checks
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q tests/test_diagnostics.py
+npm.cmd --prefix frontend test
+npm.cmd --prefix frontend run build
+```
+
+In the running app:
+
+1. Load demo; choose **Compare surrounding full days**. Write an illustrative
+   hypothesis that more attempts reach match completion and select only step 5,
+   expected Increase. Apply: expect 27.54% → 65.22%, +37.68 pp, Supporting observation.
+   This does not establish that the tutorial caused it or was understood.
+2. Edit step 5 to Decrease without applying. Results and Save analysis must still
+   use Increase. Apply: expect Conflicting observation and an investigation question.
+3. Select Sep 20 as After and compare: expect Insufficient evidence, a transition
+   explanation and the preserved descriptive +21.11 pp. Return to full days.
+4. Save, refresh and import the downloaded JSON. Expect the applied statement,
+   mapping, update and dates restored. Change a source rate in a copy and import:
+   results must recalculate. Removing a selected measurement produces missing
+   evidence, not a measured zero. Setting a rate to `true` must return an error.
+5. Clear the hypothesis; save/import. It must stay cleared. Remove the update or
+   clear the comparison while a mapping is present: expect Insufficient evidence.
+6. Import malformed JSON and confirm a clear message and Load demo recovery.
+   Stop Python, request a comparison, restart Python and Retry request: the same
+   dates and mapping must be retried. At phone width, measurements stack vertically
+   and wide tables scroll within their panel.
+
+### Interview questions
+
+- Why does the diagnostic function call the existing comparison function rather
+  than subtracting rates itself? Which invariants would otherwise be duplicated?
+- Why can a supported direction still be insufficient to demonstrate the tutorial
+  helped players understand the game? What additional measurement would you define?
+- Why keep a valid transition-day difference visible but withhold its verdict?
+- How does a missing selected measurement differ from a zero rate or unchanged rate?
+- Why does an imported file require validation even when this app generated it?
+
+The first release is intentionally limited to explicit expected directions for
+one imported dataset and one applied daily comparison. Demo recording, CI for new changes
+and any public hosting remain separate from local implementation.

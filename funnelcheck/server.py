@@ -9,6 +9,7 @@ from typing import Annotated, Any, Literal
 from fastapi import Body, FastAPI, HTTPException
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, StrictBool, StrictStr
 
+from .diagnostics import DiagnosticResult, Expectation, Hypothesis, evaluate_hypothesis
 from .analysis import StepDropoff, calculate_dropoffs
 from .comparison import StepComparison, compare_daily_cohorts, validate_comparison_queries
 from .funnel import DataError, FunnelQuery, FunnelRow, parse_rates, validation_notes
@@ -66,9 +67,25 @@ class UpdateInput(InputModel):
         return RecordedUpdate(self.name.strip(), self.local_time, self.time_zone, self.approximate)
 
 
+class ExpectationInput(InputModel):
+    step_id: NumericID
+    expected_direction: Literal["increase", "decrease", "unchanged"]
+
+
+class HypothesisInput(InputModel):
+    statement: Annotated[StrictStr, Field(min_length=1, max_length=500, pattern=r"\S")]
+    expectations: Annotated[list[ExpectationInput], Field(min_length=1, max_length=10)]
+
+    def to_domain(self) -> Hypothesis:
+        return Hypothesis(self.statement.strip(), tuple(
+            Expectation(item.step_id, item.expected_direction) for item in self.expectations
+        ))
+
+
 class DemoRequest(InputModel):
     compare: ComparisonInput | None = None
     update: UpdateInput | None = None
+    hypothesis: HypothesisInput | None = None
 
 
 class SavedAnalysis(InputModel):
@@ -76,6 +93,7 @@ class SavedAnalysis(InputModel):
     result: dict[str, Any] = Field(description="Completed Roblox operation envelope, including done and response.")
     compare: ComparisonInput | None = None
     update: UpdateInput | None = None
+    hypothesis: HypothesisInput | None = None
 
 
 class AnalyzeRequest(SavedAnalysis):
@@ -93,6 +111,7 @@ class AnalysisReport(BaseModel):
     investigations: list[Investigation]
     limitations: list[str]
     update_context: UpdateContext | None
+    diagnostics: DiagnosticResult | None
 
 
 EXAMPLE_PATH = Path(__file__).resolve().parent.parent / "examples" / "matchcompletion.json"
@@ -118,7 +137,12 @@ def create_report(payload: AnalyzeRequest) -> AnalysisReport:
     return AnalysisReport(
         snapshot=SavedAnalysis(
             **snapshot_from_rows(query, rows), compare=payload.compare, update=payload.update,
+            hypothesis=payload.hypothesis,
         ),
+        diagnostics=evaluate_hypothesis(
+            payload.hypothesis.to_domain(), rows, query, dates,
+            payload.update.to_domain() if payload.update else None,
+        ) if payload.hypothesis else None,
         query=payload.query,
         update_context=build_update_context(payload.update.to_domain(), query, dates) if payload.update else None,
         units={

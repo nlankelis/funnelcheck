@@ -24,6 +24,7 @@ it("downloads input JSON with precise rates and releases its temporary URL", asy
     },
     compare: { before: "2026-09-19", after: "2026-09-21" },
     update: null,
+    hypothesis: null,
   };
   const create = vi.fn().mockReturnValue("blob:test"),
     revoke = vi.fn();

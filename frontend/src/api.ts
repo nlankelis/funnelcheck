@@ -1,3 +1,36 @@
+export interface HypothesisInput {
+  statement: string;
+  expectations: {
+    step_id: string;
+    expected_direction: "increase" | "decrease" | "unchanged";
+  }[];
+}
+export interface DiagnosticResult {
+  statement: string;
+  update_name: string | null;
+  status:
+    | "supporting"
+    | "conflicting"
+    | "mixed"
+    | "unchanged"
+    | "insufficient_evidence";
+  observations: {
+    step_id: string;
+    step_name: string;
+    measurement: string;
+    expected_direction: string;
+    observed_direction: string | null;
+    before_date: string | null;
+    after_date: string | null;
+    before_rate: number | null;
+    after_rate: number | null;
+    change_pp: number | null;
+    status: "supporting" | "conflicting" | "unchanged" | "missing";
+    reason: string | null;
+    question: string;
+  }[];
+  limitations: string[];
+}
 export type ComparisonDates = { before: string; after: string };
 export interface UpdateInput {
   name: string;
@@ -20,9 +53,11 @@ export interface SavedAnalysis {
   result: { done: true; response: { values: unknown[] } };
   compare: ComparisonDates | null;
   update: UpdateInput | null;
+  hypothesis: HypothesisInput | null;
 }
 export interface Report {
   snapshot: SavedAnalysis;
+  diagnostics: DiagnosticResult | null;
   update_context: UpdateContext | null;
   query: {
     universe_id: string;
@@ -79,9 +114,11 @@ export async function requestReport(
   dates: ComparisonDates | null | undefined,
   signal: AbortSignal,
   update?: UpdateInput | null,
+  hypothesis?: HypothesisInput | null,
 ): Promise<Report> {
   const search = dates ? `?${new URLSearchParams(dates)}` : "";
-  const isPost = source.kind === "file" || update !== undefined;
+  const isPost =
+    source.kind === "file" || update !== undefined || hypothesis !== undefined;
   const response = await fetch(
     source.kind === "demo"
       ? `/api/demo${isPost ? "" : search}`
@@ -97,6 +134,7 @@ export async function requestReport(
               ...(source.kind === "file" ? source.payload : {}),
               ...(dates !== undefined ? { compare: dates } : {}),
               ...(update !== undefined ? { update } : {}),
+              ...(hypothesis !== undefined ? { hypothesis } : {}),
             }),
           }
         : {}),

@@ -25,6 +25,7 @@ function fixture(): Report {
       step_ids: ["1", "2"],
     },
     update_context: null,
+    diagnostics: null,
     units: {},
     rows: [
       {
@@ -72,6 +73,7 @@ function fixture(): Report {
       result: { done: true, response: { values: [] } },
       compare: null,
       update: null,
+      hypothesis: null,
     },
   };
 }
@@ -181,9 +183,7 @@ it("explains a service connection failure and offers recovery", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "Python server is running on port 8000",
   );
-  expect(
-    screen.getByRole("button", { name: "Retry current source" }),
-  ).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Retry request" })).toBeEnabled();
 });
 
 it("imports JSON via POST, preserves saved selections for validation, and reports invalid JSON", async () => {
@@ -216,6 +216,10 @@ it("imports JSON via POST, preserves saved selections for validation, and report
     target: { files: [bad] },
   });
   expect(await screen.findByRole("alert")).toHaveTextContent("not valid JSON");
+  expect(
+    screen.queryByRole("button", { name: "Retry request" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Load demo" })).toBeEnabled();
   expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
@@ -260,6 +264,7 @@ it("preserves applied update context in comparisons and does not restore it afte
   expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({
     compare: initial.update_context.suggested_comparison,
     update: initial.update_context.update,
+    hypothesis: null,
   });
   await userEvent.click(screen.getByText("Edit update details"));
   await userEvent.click(
@@ -324,4 +329,91 @@ it("restores imported comparison dates from the validated response and saves app
   expect(screen.getByRole("status")).toHaveTextContent(
     "Download started: test-analysis.json",
   );
+});
+
+it("applies explicit hypotheses, keeps drafts out of saves, and preserves mappings through date changes and clearing", async () => {
+  const initial = fixture();
+  const mapped = fixture();
+  mapped.snapshot.hypothesis = {
+    statement: "More attempts finish",
+    expectations: [{ step_id: "2", expected_direction: "increase" }],
+  };
+  const cleared = fixture();
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(respond(initial))
+    .mockResolvedValueOnce(respond(mapped))
+    .mockResolvedValueOnce(respond(mapped))
+    .mockResolvedValueOnce(respond(cleared))
+    .mockResolvedValue(respond(cleared));
+  vi.stubGlobal("fetch", fetcher);
+  const saver = vi
+    .spyOn(downloads, "downloadAnalysis")
+    .mockReturnValue("analysis.json");
+  render(<App />);
+  await screen.findByRole("heading", { name: "Test_v1" });
+  fireEvent.change(screen.getByLabelText("Expected behaviour"), {
+    target: { value: "More attempts finish" },
+  });
+  await userEvent.selectOptions(
+    screen.getByLabelText("Expected direction for step 2"),
+    "increase",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Apply hypothesis" }),
+  );
+  await screen.findByText("Edit hypothesis and measurements");
+  expect(JSON.parse(fetcher.mock.calls[1][1].body).hypothesis).toEqual(
+    mapped.snapshot.hypothesis,
+  );
+  await userEvent.click(screen.getByText("Edit hypothesis and measurements"));
+  fireEvent.change(screen.getByLabelText("Expected behaviour"), {
+    target: { value: "Unapplied draft" },
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Save analysis" }));
+  expect(saver).toHaveBeenCalledWith(mapped.snapshot);
+  await userEvent.click(screen.getByRole("button", { name: "Compare dates" }));
+  await screen.findByText("Edit hypothesis and measurements");
+  expect(JSON.parse(fetcher.mock.calls[2][1].body).hypothesis).toEqual(
+    mapped.snapshot.hypothesis,
+  );
+  await userEvent.click(screen.getByText("Edit hypothesis and measurements"));
+  expect(screen.getByLabelText("Expected behaviour")).toHaveValue(
+    "More attempts finish",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Clear hypothesis" }),
+  );
+  await screen.findByText("Add hypothesis and measurements");
+  expect(JSON.parse(fetcher.mock.calls[3][1].body).hypothesis).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Compare dates" }));
+  await screen.findByText("Add hypothesis and measurements");
+  expect(JSON.parse(fetcher.mock.calls[4][1].body).hypothesis).toBeNull();
+});
+
+it("retries a failed hypothesis request with the exact attempted settings", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(respond(fixture()))
+    .mockRejectedValueOnce(new Error("Temporary failure"))
+    .mockResolvedValueOnce(respond(fixture()));
+  vi.stubGlobal("fetch", fetcher);
+  render(<App />);
+  await screen.findByRole("heading", { name: "Test_v1" });
+  fireEvent.change(screen.getByLabelText("Expected behaviour"), {
+    target: { value: "Check this expectation" },
+  });
+  await userEvent.selectOptions(
+    screen.getByLabelText("Expected direction for step 2"),
+    "increase",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Apply hypothesis" }),
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Temporary failure",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Retry request" }));
+  await screen.findByRole("heading", { name: "Test_v1" });
+  expect(fetcher.mock.calls[2][1].body).toBe(fetcher.mock.calls[1][1].body);
 });

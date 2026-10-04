@@ -198,7 +198,7 @@ def test_saved_analysis_reopens_same_report_with_full_precision_and_context(clie
     payload["update"]["name"] = "Edited tutorial explanation"
     original = client.post("/analyze", json=payload).json()
     saved = original["snapshot"]
-    assert set(saved) == {"query", "result", "compare", "update"}
+    assert set(saved) == {"query", "result", "compare", "update", "hypothesis"}
     assert saved["compare"] == payload["compare"]
     assert saved["update"] == payload["update"]
     reopened = client.post("/analyze", json=saved)

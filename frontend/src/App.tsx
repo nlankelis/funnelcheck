@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { cohortDays, percentage, points, requestReport } from "./api";
-import type { ComparisonDates, Report, Source, UpdateInput } from "./api";
+import type {
+  ComparisonDates,
+  Report,
+  Source,
+  UpdateInput,
+  HypothesisInput,
+} from "./api";
+import HypothesisPanel from "./HypothesisPanel";
 import UpdatePanel, { phaseLabel } from "./UpdatePanel";
 import { downloadAnalysis } from "./savedAnalysis";
 
@@ -10,22 +17,32 @@ export default function App() {
   const [source, setSource] = useState<Source>({ kind: "demo" });
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+  const [canRetry, setCanRetry] = useState(true);
   const [saveNotice, setSaveNotice] = useState("");
   const [day, setDay] = useState("");
   const [before, setBefore] = useState("");
   const [after, setAfter] = useState("");
   const controller = useRef<AbortController | null>(null);
+  const lastRequest = useRef<{
+    source: Source;
+    dates?: ComparisonDates | null;
+    update?: UpdateInput | null;
+    hypothesis?: HypothesisInput | null;
+  }>({ source: { kind: "demo" } });
 
   const load = useCallback(
     async (
       nextSource: Source,
       dates?: ComparisonDates | null,
       update?: UpdateInput | null,
+      hypothesis?: HypothesisInput | null,
     ) => {
+      lastRequest.current = { source: nextSource, dates, update, hypothesis };
       controller.current?.abort();
       const active = new AbortController();
       controller.current = active;
       const timeout = window.setTimeout(() => active.abort("timeout"), 20000);
+      setCanRetry(true);
       setBusy(true);
       setError("");
       setSaveNotice("");
@@ -36,6 +53,7 @@ export default function App() {
           dates,
           active.signal,
           update,
+          hypothesis,
         );
         if (active.signal.aborted) return;
         const days = cohortDays(next);
@@ -80,6 +98,7 @@ export default function App() {
     const file = event.target.files?.[0];
     event.target.value = ""; // Selecting the same file again should retry the import.
     if (!file) return;
+    setCanRetry(false);
     controller.current?.abort();
     setError("");
     setSaveNotice("");
@@ -134,6 +153,7 @@ export default function App() {
   function compare(event: FormEvent) {
     event.preventDefault();
     if (!before || !after || before >= after) {
+      setCanRetry(false);
       setError("Choose a before date earlier than the after date.");
       return;
     }
@@ -141,6 +161,7 @@ export default function App() {
       source,
       { before, after },
       report?.update_context?.update ?? null,
+      report?.snapshot.hypothesis ?? null,
     );
   }
 
@@ -222,8 +243,8 @@ export default function App() {
                 Save analysis
               </button>
               <p className="small">
-                Save applied update details and comparison dates with the source
-                data. Import the JSON to reopen it.
+                Save applied update details, hypothesis and comparison dates
+                with the source data. Import the JSON to reopen it.
               </p>
               {saveNotice && (
                 <p className="small save-notice" role="status">
@@ -308,6 +329,7 @@ export default function App() {
                       source,
                       null,
                       report?.update_context?.update ?? null,
+                      report?.snapshot.hypothesis ?? null,
                     )
                   }
                 >
@@ -334,19 +356,23 @@ export default function App() {
               <div className="error" role="alert">
                 <strong>We couldn’t complete that request.</strong>
                 <p>{error}</p>
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    void load(
-                      source,
-                      null,
-                      report?.update_context?.update ?? null,
-                    )
-                  }
-                >
-                  Retry current source
-                </button>
+                {canRetry && (
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      const attempt = lastRequest.current;
+                      void load(
+                        attempt.source,
+                        attempt.dates,
+                        attempt.update,
+                        attempt.hypothesis,
+                      );
+                    }}
+                  >
+                    Retry request
+                  </button>
+                )}
               </div>
             )}
             {busy && (
@@ -381,10 +407,16 @@ export default function App() {
                           }
                         : null,
                       update,
+                      report.snapshot.hypothesis ?? null,
                     )
                   }
                   onCompare={(dates) =>
-                    void load(source, dates, report.update_context?.update)
+                    void load(
+                      source,
+                      dates,
+                      report.update_context?.update,
+                      report.snapshot.hypothesis ?? null,
+                    )
                   }
                 />
                 <div className="summary-grid">
@@ -614,6 +646,17 @@ export default function App() {
                     </div>
                   )}
                 </section>
+                <HypothesisPanel
+                  report={report}
+                  onApply={(hypothesis) =>
+                    void load(
+                      source,
+                      report.snapshot.compare,
+                      report.snapshot.update,
+                      hypothesis,
+                    )
+                  }
+                />
                 <section id="investigations">
                   <div className="section-heading investigation-heading">
                     <div>

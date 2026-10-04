@@ -17,6 +17,8 @@ update timing and questions to investigate into one report that can be saved and
 - Shows cumulative completion and step-by-step drop-off, with distinct denominators.
 - Compares two daily cohorts and annotates a reported update time.
 - Suggests rule-based questions linked to the observed data.
+- Checks an explicit update hypothesis against selected step-rate directions, showing
+  supporting, conflicting, unchanged or missing evidence and a next investigation.
 - Saves measurements and applied settings so an analysis can be reopened and recalculated.
 
 The included example runs without a Roblox account or API key. The dashboard works
@@ -31,8 +33,9 @@ The bundled [MatchCompletion_v2 example](examples/matchcompletion.json) contains
 modify copies or use synthetic data to exercise edge cases.
 
 The game owner reported a tutorial update at **approximately September 20, 2026,
-04:00 UK time**, explaining the game and showing players how to play. This converts
-to **03:00 UTC**. The daily cohort buckets use UTC:
+04:00 UK time**, adding a tutorial that explained how the game worked quickly
+and in detail. There was no earlier tutorial to compare directly. The reported
+time converts to **03:00 UTC**. The daily cohort buckets use UTC:
 
 | Cohort date | Timing relative to reported deployment | Match completion |
 | --- | --- | ---: |
@@ -111,14 +114,15 @@ install command. Do not copy `.venv` or `node_modules` between machines.
 
 Use **Import saved JSON** with the bundled example or a snapshot from the CLI.
 The document contains `query` and the completed Roblox operation `result`, plus
-optional `update` and `compare` settings. Query metadata must describe the request
-that produced those measurements; a response alone cannot verify that pairing.
+optional `update`, `compare` and `hypothesis` settings. Query metadata must describe
+the request that produced those measurements; a response alone cannot verify that pairing.
 
 **Save analysis** downloads normalized measurements, query context and the applied
 settings. Unapplied form edits, calculated results, arbitrary operation metadata and
 headers are excluded. Importing the file validates it again and recalculates the report.
-Cleared update/comparison settings remain `null`. Without saving, refreshing restores
-the demo. There is no server-side persistence.
+Cleared update/comparison/hypothesis settings remain `null`. Older files without
+a hypothesis remain supported; no mapping is inferred on import. Without saving,
+refreshing restores the demo. There is no server-side persistence.
 
 The UI accepts files up to 5 MB; the HTTP analysis supports at most 366 days and
 100 selected steps. These are application limits, not Roblox rules.
@@ -170,6 +174,48 @@ transition; exactly midnight UTC starts an after day. Ambiguous/nonexistent UK
 clock-change times are rejected instead of guessed. Labels reflect reported timing,
 not confirmed exposure to a game version.
 
+### Check an update hypothesis
+
+Record an update, apply full before/after comparison dates, then open **Check an
+update hypothesis**. Write the expected behaviour and explicitly select 1–10 step
+measurements with expected directions: increase, decrease or unchanged. Unselected
+steps are excluded. Only daily cumulative session-cohort completion rates are
+supported; this feature does not check tutorial comprehension, event counts or
+relative transition drops.
+
+An illustrative mapping is “more attempts reach match completion”, with step 5
+expected to increase. September 19 → 21 gives +37.68 pp and a supporting observation.
+That mapping is a choice for an investigation, not an established definition of
+the tutorial's goal. **First reveal issued** does not prove a player saw a reveal.
+
+| Result | Rule |
+| --- | --- |
+| Supporting | The observed direction matches the selected expectation |
+| Conflicting | A nonzero change has a different direction from the expectation |
+| Unchanged | Exactly zero change when an increase/decrease was expected |
+| Insufficient evidence | Missing/unusable selected data, no update/comparison, or dates that are not a full before day and full after day |
+| Mixed summary | Available selected observations include both supporting and conflicting directions |
+
+The summary first checks for missing evidence, then mixed directions, conflicting
+observations, unchanged observations, and finally support. It does not vote or
+weight selected steps. Each observation retains its dates, expected and observed
+directions, rates, signed pp change, reason and investigation question. Incomplete
+evidence withholds a complete summary while preserving usable individual observations.
+Transition-day rates may still appear descriptively; no update-hypothesis verdict
+is drawn from them.
+
+Direction uses the original precision. “Unchanged” means exactly zero difference,
+not equivalence or statistical insignificance. Agreement is an observation, never
+proof of an update effect. To investigate behaviour directly, define and collect
+an appropriate event rather than assigning meaning from its name. More compatible
+days, event-definition checks, playtests and version-exposure evidence are suggested
+next steps; the tool cannot provide missing denominators or predict gains.
+
+Apply edits before saving. Draft text/directions are excluded from downloads;
+reopening validates the mapping and recalculates from measurements. A failed request
+can be retried with the attempted settings. Clearing update context or comparison
+keeps the mapping but returns insufficient evidence; **Clear hypothesis** removes it.
+
 Questions are deterministic rules linked to dates, steps and evidence. They do not
 infer game mechanics from labels, prescribe a predicted fix or use a language model.
 
@@ -179,16 +225,16 @@ infer game mechanics from labels, prescribe a predicted fix or use a language mo
 | --- | --- |
 | `funnelcheck/funnel.py` | Query model, strict parsing and measurement validation |
 | `funnelcheck/analysis.py`, `comparison.py` | Pure drop-off and comparison calculations |
-| `funnelcheck/updates.py`, `investigations.py` | Update timing and evidence-linked questions |
+| `funnelcheck/updates.py`, `investigations.py`, `diagnostics.py` | Update timing, evidence-linked questions and explicit hypothesis rules |
 | `funnelcheck/server.py` | FastAPI schemas and report composition |
 | `funnelcheck/export.py` | Shared serialization of validated measurements |
 | `funnelcheck/api.py`, `__main__.py` | Optional Roblox client and CLI |
 | `frontend/src/` | React controls, API adapter, display and browser downloads |
 | `tests/`, `frontend/src/*.test.*` | Backend and frontend automated checks |
 
-The HTTP endpoints are `GET /health`, `GET /demo`, `POST /demo` (with update/comparison
-settings) and `POST /analyze` (with saved inputs). A valid report can return **200** with
-quality notes; invalid input returns **422**. These endpoints never fetch from Roblox.
+The HTTP endpoints are `GET /health`, `GET /demo`, `POST /demo` (with update, comparison
+and hypothesis settings) and `POST /analyze` (with saved inputs). A valid report can
+return **200** with quality notes; invalid input returns **422**. These endpoints never fetch from Roblox.
 Responses include calculated fields and a validated `snapshot` suitable for saving.
 
 For development explanations and interview questions, see [WALKTHROUGH.md](WALKTHROUGH.md).
@@ -210,14 +256,16 @@ hosting and API routing are outside the current scope.
 
 Tests cover the real CSV/API fixture agreement, malformed rates, missing/zero values,
 comparison compatibility, timezone boundaries, HTTP validation, import/export round
-trips, request failures and applied-versus-draft UI state. API client tests use fake
-responses. No Roblox key, live game or running app server is needed to run tests.
+trips, request failures, explicit diagnostic mappings and applied-versus-draft UI
+state. API client tests use fake responses. No Roblox key, live game or running app server is needed to run tests.
 
 [CI](.github/workflows/ci.yml) runs on pushes and pull requests and can be started
 manually in GitHub Actions. Python tests and the offline CLI demo run on Windows
 and Linux; frontend tests and the production build run on Linux with Node 24.
 Dependency downloads are cached, but each job installs dependencies and runs its checks.
 The workflow needs no custom secrets and does not deploy the app.
+The baseline commit `d117890` has a [successful hosted CI run](https://github.com/nlankelis/funnelcheck/actions/runs/36352195938);
+new local changes require their own run after a push.
 
 ## Scope and limitations
 
